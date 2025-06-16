@@ -1,129 +1,97 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Идеи</title>
-  <style>
-    body { font-family: Arial; padding: 20px; background: #f5f5f5; }
-    input, button { margin: 5px; padding: 8px; }
-    #adminPanel, #moderPanel, #codeSection { display: none; margin-top: 20px; }
-  </style>
+  <title>Вход на сайт идей</title>
+  <meta charset="UTF-8" />
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
-
-  <h2>Регистрация / Вход</h2>
-  <input type="email" id="email" placeholder="Email"><br>
-  <input type="text" id="username" placeholder="Имя"><br>
-  <input type="password" id="password" placeholder="Пароль"><br>
-  <button onclick="register()">Регистрация</button>
-  <button onclick="login()">Войти</button>
-
-  <div id="codeSection">
-    <hr>
-    <input type="text" id="roleCode" placeholder="Введите код для роли">
-    <button onclick="submitCode()">Подтвердить код</button>
+  <h1>Добро пожаловать!</h1>
+  
+  <div>
+    <input id="email" type="email" placeholder="Email"><br>
+    <input id="name" type="text" placeholder="Имя"><br>
+    <input id="password" type="password" placeholder="Пароль"><br>
+    <input id="code" type="text" placeholder="Секретный код (если есть)"><br><br>
+    <button onclick="register()">Зарегистрироваться</button>
+    <button onclick="login()">Войти</button>
   </div>
 
-  <div id="adminPanel">
-    <h3>Админ панель</h3>
-    <p>Добро пожаловать, Главный Админ!</p>
-    <a href="admin.html">Перейти в админ-панель</a>
-  </div>
-
-  <div id="moderPanel">
-    <h3>Панель модератора</h3>
-    <p>Добро пожаловать, Модератор!</p>
-    <a href="moderator.html">Перейти в панель модератора</a>
-  </div>
-
-  <script type="module">
-    // ВСТАВЬ СВОИ ДАННЫЕ ОТ FIREBASE СЮДА 👇
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
+  <script>
+    // Firebase config
     const firebaseConfig = {
-      apiKey: "ВСТАВЬ_СЮДА",
-      authDomain: "ВСТАВЬ",
-      projectId: "ВСТАВЬ",
-      storageBucket: "ВСТАВЬ",
-      messagingSenderId: "ВСТАВЬ",
-      appId: "ВСТАВЬ"
+      apiKey: "AIzaSyALQpXGdjIDNu6HLaskiDi8XmELSsd9XPI",
+      authDomain: "idei-project-20b24.firebaseapp.com",
+      projectId: "idei-project-20b24",
+      storageBucket: "idei-project-20b24.firebasestorage.app",
+      messagingSenderId: "645291159865",
+      appId: "1:645291159865:web:517e3c4ad3139f153138e8",
+      measurementId: "G-0Y1W3DFEY3"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth();
-    const db = getFirestore();
-
-    const codeSection = document.getElementById("codeSection");
-    const adminPanel = document.getElementById("adminPanel");
-    const moderPanel = document.getElementById("moderPanel");
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
     async function register() {
-      const email = emailInput.value;
-      const pass = password.value;
-      const username = document.getElementById("username").value;
+      const email = document.getElementById("email").value;
+      const name = document.getElementById("name").value;
+      const password = document.getElementById("password").value;
+      const code = document.getElementById("code").value;
 
       try {
-        const userCred = await createUserWithEmailAndPassword(auth, email, pass);
-        await setDoc(doc(db, "users", userCred.user.uid), {
-          email: email,
-          username: username,
-          role: "user"
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const uid = userCredential.user.uid;
+        let role = "user";
+
+        if (code === "admin99") role = "admin";
+        else if (code === "moder98") role = "moderator";
+
+        await db.collection("users").doc(uid).set({
+          name,
+          email,
+          role,
+          createdAt: Date.now()
         });
-        alert("Успешно зарегистрирован!");
-        codeSection.style.display = "block";
-      } catch (err) {
-        alert("Ошибка регистрации: " + err.message);
+
+        alert("Успешная регистрация!");
+
+        redirectByRole(role);
+      } catch (error) {
+        alert("Ошибка: " + error.message);
       }
     }
 
     async function login() {
-      const email = emailInput.value;
-      const pass = password.value;
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
 
       try {
-        const userCred = await signInWithEmailAndPassword(auth, email, pass);
-        const userDoc = await getDoc(doc(db, "users", userCred.user.uid));
-        const role = userDoc.exists() ? userDoc.data().role : "user";
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        const uid = userCredential.user.uid;
 
-        if (role === "admin") {
-          adminPanel.style.display = "block";
-        } else if (role === "moderator") {
-          moderPanel.style.display = "block";
-        } else {
-          codeSection.style.display = "block";
+        const doc = await db.collection("users").doc(uid).get();
+        if (!doc.exists) {
+          alert("Пользователь не найден в базе данных!");
+          return;
         }
-      } catch (err) {
-        alert("Ошибка входа: " + err.message);
+
+        const role = doc.data().role;
+        alert("Успешный вход!");
+
+        redirectByRole(role);
+      } catch (error) {
+        alert("Ошибка входа: " + error.message);
       }
     }
 
-    async function submitCode() {
-      const code = document.getElementById("roleCode").value.trim();
-      const user = auth.currentUser;
-      if (!user) return alert("Сначала войдите в аккаунт.");
-
-      let role = "";
-      if (code === "admin99") role = "admin";
-      else if (code === "moder98") role = "moderator";
-      else return alert("Неверный код");
-
-      try {
-        await setDoc(doc(db, "users", user.uid), {
-          email: user.email,
-          username: user.displayName || "",
-          role: role
-        });
-        alert("Теперь вы " + (role === "admin" ? "Админ!" : "Модератор!"));
-        window.location.reload();
-      } catch (err) {
-        alert("Ошибка назначения роли: " + err.message);
-      }
+    function redirectByRole(role) {
+      if (role === "admin") window.location.href = "admin.html";
+      else if (role === "moderator") window.location.href = "moderator.html";
+      else window.location.href = "user.html";
     }
-
-    const emailInput = document.getElementById("email");
-    const password = document.getElementById("password");
   </script>
 </body>
 </html>
